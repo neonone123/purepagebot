@@ -1,9 +1,9 @@
 const { Telegraf, Markup } = require('telegraf')
 
 // 1. ENV VARS
-const BOT_TOKEN = 8549251404:AAHZAWE3YT5rvJMPMnI8GldtiW3GD_5HmmY
-const RU_OPERATOR_ID = 1444943614 // your Telegram user ID
-const EN_OPERATOR_ID = 430970871 // your friend's Telegram user ID
+const BOT_TOKEN = process.env.BOT_TOKEN
+const RU_OPERATOR_ID = process.env.RU_OPERATOR_ID // your Telegram user ID
+const EN_OPERATOR_ID = process.env.EN_OPERATOR_ID // your friend's Telegram user ID
 
 if (!BOT_TOKEN || !RU_OPERATOR_ID || !EN_OPERATOR_ID) {
   console.error('Missing BOT_TOKEN, RU_OPERATOR_ID or EN_OPERATOR_ID')
