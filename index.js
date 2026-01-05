@@ -4,6 +4,8 @@ const { Telegraf, Markup } = require('telegraf')
 const BOT_TOKEN = process.env.BOT_TOKEN
 const RU_OPERATOR_ID = process.env.RU_OPERATOR_ID // your Telegram user ID
 const EN_OPERATOR_ID = process.env.EN_OPERATOR_ID // your friend's Telegram user ID
+const WEBHOOK_URL = process.env.WEBHOOK_URL
+const WEBHOOK_PATH = process.env.WEBHOOK_PATH
 
 if (!BOT_TOKEN || !RU_OPERATOR_ID || !EN_OPERATOR_ID) {
   console.error('Missing BOT_TOKEN, RU_OPERATOR_ID or EN_OPERATOR_ID')
@@ -152,8 +154,36 @@ bot.on('text', async (ctx) => {
   await bot.telegram.sendMessage(userId, text)
 })
 
-bot.launch().then(() => {
-  console.log('Bot started')
+const getWebhookConfig = () => {
+  if (!WEBHOOK_URL) return null
+
+  const url = new URL(WEBHOOK_URL)
+  const domain = `${url.protocol}//${url.host}`
+  const hookPath = url.pathname !== '/' ? url.pathname : WEBHOOK_PATH || `/telegraf/${BOT_TOKEN}`
+  const port = Number(process.env.PORT) || 3000
+
+  return { domain, hookPath, port }
+}
+
+const startBot = async () => {
+  const webhookConfig = getWebhookConfig()
+
+  if (webhookConfig) {
+    const { domain, hookPath, port } = webhookConfig
+    await bot.telegram.setWebhook(`${domain}${hookPath}`)
+    await bot.launch({ webhook: { domain, hookPath, port } })
+    console.log(`Bot started with webhook at ${domain}${hookPath}`)
+    return
+  }
+
+  await bot.telegram.deleteWebhook({ drop_pending_updates: true })
+  await bot.launch({ dropPendingUpdates: true })
+  console.log('Bot started with long polling')
+}
+
+startBot().catch((error) => {
+  console.error('Failed to start bot', error)
+  process.exit(1)
 })
 
 // Enable graceful stop
