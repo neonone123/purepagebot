@@ -105,19 +105,31 @@ bot.on('callback_query', async (ctx) => {
 
   if (!data.startsWith('reply_')) return
 
+  const fromId = String(ctx.from.id)
+  const isOperator =
+    fromId === String(RU_OPERATOR_ID) || fromId === String(EN_OPERATOR_ID)
+
+  if (!isOperator) {
+    await ctx.answerCbQuery('Only operators can reply.', { show_alert: true })
+    return
+  }
+
   const userId = data.split('_')[1]
 
   // Tell operator how to reply
-  await ctx.reply(
+  const instruction = await ctx.reply(
     `Type your reply to user ${userId} as a reply to *this* message.`,
     { parse_mode: 'Markdown' }
   )
+
+  // Map instruction message -> userId so replies to it are routed correctly
+  ticketMap.set(`${fromId}:${instruction.message_id}`, userId)
 
   ctx.answerCbQuery()
 })
 
 // 7. Operator replies -> send back to user
-bot.on('message', async (ctx) => {
+bot.on('text', async (ctx) => {
   const fromId = String(ctx.from.id)
 
   // Only operators can trigger this logic
