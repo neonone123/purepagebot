@@ -105,7 +105,7 @@ bot.on('text', async (ctx) => {
 bot.on('callback_query', async (ctx) => {
   const data = ctx.callbackQuery.data
 
-  if (!data.startsWith('reply_')) return
+  if (!data || !data.startsWith('reply_')) return
 
   const fromId = String(ctx.from.id)
   const isOperator =
@@ -188,7 +188,7 @@ const startBot = async () => {
       }
     }
 
-    await bot.launch({ webhook: { port, hookPath } })
+    await bot.launch({ webhook: { domain, port, hookPath } })
     console.log(`Bot started successfully on port ${port}`)
     return
   }
@@ -200,7 +200,7 @@ const startBot = async () => {
 }
 
 startBot().catch((error) => {
-  console.error('Failed to start bot:', error.message)
+  console.error('Failed to start bot:', error.message || error)
   process.exit(1)
 })
 
