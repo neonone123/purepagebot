@@ -170,22 +170,33 @@ const startBot = async () => {
 
   if (webhookConfig) {
     const { domain, hookPath, port } = webhookConfig
+    console.log(`Setting up webhook: ${domain}${hookPath} on port ${port}`)
     await bot.telegram.setWebhook(`${domain}${hookPath}`)
     await bot.launch({ webhook: { domain, hookPath, port } })
     console.log(`Bot started with webhook at ${domain}${hookPath}`)
     return
   }
 
+  console.log('No webhook config found. Attempting to start with long polling...')
   await bot.telegram.deleteWebhook({ drop_pending_updates: true })
   await bot.launch({ dropPendingUpdates: true })
   console.log('Bot started with long polling')
 }
 
 startBot().catch((error) => {
-  console.error('Failed to start bot', error)
+  console.error('Failed to start bot:', error.message)
   process.exit(1)
 })
 
 // Enable graceful stop
-process.once('SIGINT', () => bot.stop('SIGINT'))
-process.once('SIGTERM', () => bot.stop('SIGTERM'))
+const shutdown = (signal) => {
+  console.log(`Received ${signal}. Shutting down...`)
+  try {
+    bot.stop(signal)
+  } catch (err) {
+    console.warn('Bot was not running or failed to stop gracefully:', err.message)
+  }
+}
+
+process.once('SIGINT', () => shutdown('SIGINT'))
+process.once('SIGTERM', () => shutdown('SIGTERM'))
