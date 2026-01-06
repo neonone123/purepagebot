@@ -6,8 +6,6 @@ const RU_OPERATOR_ID = process.env.RU_OPERATOR_ID // your Telegram user ID
 const EN_OPERATOR_ID = process.env.EN_OPERATOR_ID // your friend's Telegram user ID
 const WEBHOOK_URL = process.env.WEBHOOK_URL
 const WEBHOOK_PATH = process.env.WEBHOOK_PATH
-const RAILWAY_PUBLIC_DOMAIN = process.env.RAILWAY_PUBLIC_DOMAIN
-const RAILWAY_STATIC_URL = process.env.RAILWAY_STATIC_URL
 
 if (!BOT_TOKEN || !RU_OPERATOR_ID || !EN_OPERATOR_ID) {
   console.error('Missing BOT_TOKEN, RU_OPERATOR_ID or EN_OPERATOR_ID')
@@ -157,13 +155,9 @@ bot.on('text', async (ctx) => {
 })
 
 const getWebhookConfig = () => {
-  const resolvedWebhookUrl = WEBHOOK_URL
-    || (RAILWAY_PUBLIC_DOMAIN ? `https://${RAILWAY_PUBLIC_DOMAIN}` : null)
-    || (RAILWAY_STATIC_URL ? `https://${RAILWAY_STATIC_URL}` : null)
+  if (!WEBHOOK_URL) return null
 
-  if (!resolvedWebhookUrl) return null
-
-  const url = new URL(resolvedWebhookUrl)
+  const url = new URL(WEBHOOK_URL)
   const domain = `${url.protocol}//${url.host}`
   const hookPath = url.pathname !== '/' ? url.pathname : WEBHOOK_PATH || `/telegraf/${BOT_TOKEN}`
   const port = Number(process.env.PORT) || 3000
