@@ -4,6 +4,10 @@ const { Telegraf, Markup } = require('telegraf')
 const BOT_TOKEN = process.env.BOT_TOKEN
 const RU_OPERATOR_ID = process.env.RU_OPERATOR_ID // your Telegram user ID
 const EN_OPERATOR_ID = process.env.EN_OPERATOR_ID // your friend's Telegram user ID
+const WEBHOOK_URL = process.env.WEBHOOK_URL
+const WEBHOOK_PATH = process.env.WEBHOOK_PATH
+const RAILWAY_PUBLIC_DOMAIN = process.env.RAILWAY_PUBLIC_DOMAIN
+const RAILWAY_STATIC_URL = process.env.RAILWAY_STATIC_URL
 
 if (!BOT_TOKEN || !RU_OPERATOR_ID || !EN_OPERATOR_ID) {
   console.error('Missing BOT_TOKEN, RU_OPERATOR_ID or EN_OPERATOR_ID')
@@ -105,19 +109,31 @@ bot.on('callback_query', async (ctx) => {
 
   if (!data.startsWith('reply_')) return
 
+  const fromId = String(ctx.from.id)
+  const isOperator =
+    fromId === String(RU_OPERATOR_ID) || fromId === String(EN_OPERATOR_ID)
+
+  if (!isOperator) {
+    await ctx.answerCbQuery('Only operators can reply.', { show_alert: true })
+    return
+  }
+
   const userId = data.split('_')[1]
 
   // Tell operator how to reply
-  await ctx.reply(
+  const instruction = await ctx.reply(
     `Type your reply to user ${userId} as a reply to *this* message.`,
     { parse_mode: 'Markdown' }
   )
+
+  // Map instruction message -> userId so replies to it are routed correctly
+  ticketMap.set(`${fromId}:${instruction.message_id}`, userId)
 
   ctx.answerCbQuery()
 })
 
 // 7. Operator replies -> send back to user
-bot.on('message', async (ctx) => {
+bot.on('text', async (ctx) => {
   const fromId = String(ctx.from.id)
 
   // Only operators can trigger this logic
@@ -140,8 +156,40 @@ bot.on('message', async (ctx) => {
   await bot.telegram.sendMessage(userId, text)
 })
 
-bot.launch().then(() => {
-  console.log('Bot started')
+const getWebhookConfig = () => {
+  const resolvedWebhookUrl = WEBHOOK_URL
+    || (RAILWAY_PUBLIC_DOMAIN ? `https://${RAILWAY_PUBLIC_DOMAIN}` : null)
+    || (RAILWAY_STATIC_URL ? `https://${RAILWAY_STATIC_URL}` : null)
+
+  if (!resolvedWebhookUrl) return null
+
+  const url = new URL(resolvedWebhookUrl)
+  const domain = `${url.protocol}//${url.host}`
+  const hookPath = url.pathname !== '/' ? url.pathname : WEBHOOK_PATH || `/telegraf/${BOT_TOKEN}`
+  const port = Number(process.env.PORT) || 3000
+
+  return { domain, hookPath, port }
+}
+
+const startBot = async () => {
+  const webhookConfig = getWebhookConfig()
+
+  if (webhookConfig) {
+    const { domain, hookPath, port } = webhookConfig
+    await bot.telegram.setWebhook(`${domain}${hookPath}`)
+    await bot.launch({ webhook: { domain, hookPath, port } })
+    console.log(`Bot started with webhook at ${domain}${hookPath}`)
+    return
+  }
+
+  await bot.telegram.deleteWebhook({ drop_pending_updates: true })
+  await bot.launch({ dropPendingUpdates: true })
+  console.log('Bot started with long polling')
+}
+
+startBot().catch((error) => {
+  console.error('Failed to start bot', error)
+  process.exit(1)
 })
 
 // Enable graceful stop
