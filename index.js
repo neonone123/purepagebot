@@ -170,10 +170,26 @@ const startBot = async () => {
 
   if (webhookConfig) {
     const { domain, hookPath, port } = webhookConfig
-    console.log(`Setting up webhook: ${domain}${hookPath} on port ${port}`)
-    await bot.telegram.setWebhook(`${domain}${hookPath}`)
-    await bot.launch({ webhook: { domain, hookPath, port } })
-    console.log(`Bot started with webhook at ${domain}${hookPath}`)
+    const fullUrl = `${domain}${hookPath}`
+
+    try {
+      const info = await bot.telegram.getWebhookInfo()
+      if (info.url !== fullUrl) {
+        console.log(`Setting up webhook: ${fullUrl} on port ${port}`)
+        await bot.telegram.setWebhook(fullUrl)
+      } else {
+        console.log(`Webhook already set to ${fullUrl}. Starting server on port ${port}...`)
+      }
+    } catch (err) {
+      console.warn('Could not check/set webhook status:', err.message)
+      // Fallback: try to set it anyway if we haven't hit a 429 yet
+      if (!err.message.includes('429')) {
+        await bot.telegram.setWebhook(fullUrl)
+      }
+    }
+
+    await bot.launch({ webhook: { port, hookPath } })
+    console.log(`Bot started successfully on port ${port}`)
     return
   }
 
